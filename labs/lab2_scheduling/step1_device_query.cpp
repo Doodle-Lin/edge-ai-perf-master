@@ -43,6 +43,12 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <thread>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 // ============================================================================
 // 模拟框架中的 CpuInfo / GpuInfo 结构体（与 include/scheduler/DeviceInfo.h 对齐）

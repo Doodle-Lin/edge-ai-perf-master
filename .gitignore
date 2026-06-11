@@ -1,0 +1,28 @@
+# Build
+build/
+out/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln
+*.vcxproj*
+
+# Python
+__pycache__/
+*.pyc
+*.pyd
+.eggs/
+*.egg-info/
+
+# Lab outputs
+lab1_op_profile.json
+lab1_power_profile.json
+*.dot
+*.png
+
+# OS
+Thumbs.db
+.DS_Store

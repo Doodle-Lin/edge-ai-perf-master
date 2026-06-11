@@ -36,6 +36,8 @@
 #ifndef NCNN_EXT_CUSTOM_HARD_SWISH_H
 #define NCNN_EXT_CUSTOM_HARD_SWISH_H
 
+#ifdef USE_NCNN
+
 #include "layer.h"      // ncnn::Layer基类
 #include "mat.h"         // ncnn::Mat张量类
 
@@ -123,5 +125,7 @@ private:
      */
     static void forwardAVX2(float* ptr, int size);
 };
+
+#endif // USE_NCNN
 
 #endif // NCNN_EXT_CUSTOM_HARD_SWISH_H

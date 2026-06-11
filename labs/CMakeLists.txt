@@ -2,10 +2,10 @@
 # 每个 lab step 是一个独立的可执行文件，链接到 edgeai_core
 
 function(add_lab LAB_DIR STEP_NAME)
-    add_executable(${STEP_NAME} ${LAB_DIR}/${STEP_NAME}.cpp)
+    add_executable(${STEP_NAME} ${CMAKE_SOURCE_DIR}/${LAB_DIR}/${STEP_NAME}.cpp)
     target_include_directories(${STEP_NAME} PRIVATE
         ${CMAKE_SOURCE_DIR}/include
-        ${LAB_DIR}
+        ${CMAKE_SOURCE_DIR}/${LAB_DIR}
     )
     target_link_libraries(${STEP_NAME} PRIVATE edgeai_core)
     if(ENABLE_VULKAN)
@@ -36,3 +36,8 @@ add_lab(labs/lab3_operators step6_vulkan_compute_basics)
 add_lab(labs/lab3_operators step7_vulkan_gemm)
 add_lab(labs/lab3_operators step8_vulkan_conv2d)
 add_lab(labs/lab3_operators step9_custom_ncnn_op)
+
+# NCNN 自定义算子实验 - 在 NCNN 可用时使用真实 NCNN API
+if(NCNN_FOUND)
+    target_compile_definitions(step9_custom_ncnn_op PRIVATE USE_NCNN)
+endif()

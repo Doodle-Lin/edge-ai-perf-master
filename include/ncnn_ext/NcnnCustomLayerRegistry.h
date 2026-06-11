@@ -27,6 +27,8 @@
 #ifndef NCNN_EXT_NCNN_CUSTOM_LAYER_REGISTRY_H
 #define NCNN_EXT_NCNN_CUSTOM_LAYER_REGISTRY_H
 
+#ifdef USE_NCNN
+
 #include <string>
 #include <vector>
 #include <functional>
@@ -159,5 +161,7 @@ private:
     template<typename LayerT>
     static ncnn::Layer* creatorThunk() { return new LayerT(); }
 };
+
+#endif // USE_NCNN
 
 #endif // NCNN_EXT_NCNN_CUSTOM_LAYER_REGISTRY_H

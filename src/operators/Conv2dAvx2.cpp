@@ -15,7 +15,10 @@
 
 #include <immintrin.h>  // AVX2 intrinsics 头文件
 #include <cassert>
+#include <cmath>
 #include <cstring>
+
+using std::sqrt;
 
 namespace edgeai {
 

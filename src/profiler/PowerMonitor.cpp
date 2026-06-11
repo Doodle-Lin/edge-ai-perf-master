@@ -24,7 +24,7 @@
  *    - 真实 GPU 功耗需要 NVIDIA NVML 库（nvidia-smi 的底层库）
  *    - NVML API: nvmlInit(), nvmlDeviceGetPowerUsage(), nvmlShutdown()
  *    - 为学习目的，本实现中 GPU 功耗为 stub（返回 0）
- *    - 可通过读取 /sys/class/drm/card0/device/hwmon/hwmon*/power1_input
+ *    - 可通过读取 /sys/class/drm/card0/device/hwmon/ 下的 power1_input
  *      获取部分 GPU 的功耗（AMD/Intel 核显）
  *
  * 5. 采样线程实现：
@@ -33,18 +33,6 @@
  *    - 采样间隔 ~100ms，使用 std::this_thread::sleep_for
  *    - 析构时确保线程被 join，避免悬空线程
  */
-
-#include "profiler/PowerMonitor.h"
-
-#include <algorithm>
-#include <atomic>
-#include <chrono>
-#include <cstdio>
-#include <fstream>
-#include <iomanip>
-#include <sstream>
-#include <thread>
-#include <vector>
 
 // ──────────────── 平台头文件 ────────────────
 #ifdef PLATFORM_WINDOWS
@@ -58,6 +46,18 @@
     #include <dirent.h>
     #include <cstring>
 #endif
+
+#include "profiler/PowerMonitor.h"
+
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdio>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <thread>
+#include <vector>
 
 namespace edgeai {
 
@@ -141,8 +141,8 @@ bool PowerMonitor::Impl::initPlatform()
     // 添加 CPU 利用率计数器
     // \\Processor Information(_Total)\\% Processor Time 比 \\Processor 更精确
     // 它能区分物理核心与逻辑核心
-    status = PdhAddCounter(cpuQuery,
-        L"\\Processor Information(_Total)\\% Processor Time",
+    status = PdhAddCounterA(cpuQuery,
+        "\\Processor Information(_Total)\\% Processor Time",
         0, &cpuCounter);
 
     if (status != ERROR_SUCCESS) {
@@ -154,7 +154,7 @@ bool PowerMonitor::Impl::initPlatform()
     }
 
     // 首次采集数据（PDH 需要至少两次采集才能计算增量值）
-    PdhCollectQueryData();
+    PdhCollectQueryData(cpuQuery);
 
     pdhAvailable = true;
     std::printf("[PowerMonitor] Windows PDH initialized (CPU utilization → power estimation)\n");
@@ -249,7 +249,7 @@ double PowerMonitor::Impl::readCpuPower()
     }
 
     // 采集当前数据
-    PDH_STATUS status = PdhCollectQueryData();
+    PDH_STATUS status = PdhCollectQueryData(cpuQuery);
     if (status != ERROR_SUCCESS) {
         return 0.0;
     }

@@ -101,9 +101,16 @@ public:
     }
     ~Mat() { if (owner && data) delete[] data; }
 
-    // 禁止拷贝
+    // 禁止拷贝，允许移动
     Mat(const Mat&) = delete;
     Mat& operator=(const Mat&) = delete;
+    Mat(Mat&& o) noexcept : w(o.w), h(o.h), c(o.c), data(o.data), owner(o.owner) {
+        o.data = nullptr; o.owner = false;
+    }
+    Mat& operator=(Mat&& o) noexcept {
+        if (this != &o) { if (owner && data) delete[] data; w=o.w; h=o.h; c=o.c; data=o.data; owner=o.owner; o.data=nullptr; o.owner=false; }
+        return *this;
+    }
 
     int total() const { return w * h * c; }
 
@@ -132,8 +139,8 @@ public:
     /// @param top_blobs    输出 blob 列表
     /// @param opt          运行选项
     /// @return 0 成功, 非0 失败
-    virtual int forward(const std::vector<Mat>& bottom_blobs,
-                        std::vector<Mat>& top_blobs,
+    virtual int forward(const std::vector<Mat*>& bottom_blobs,
+                        std::vector<Mat*>& top_blobs,
                         const Option& opt) const {
         (void)bottom_blobs; (void)top_blobs; (void)opt;
         return -1;  // 未实现
@@ -231,31 +238,31 @@ public:
      * @param opt          NCNN 运行选项
      * @return 0 成功, 非0 失败
      */
-    virtual int forward(const std::vector<ncnn::Mat>& bottom_blobs,
-                        std::vector<ncnn::Mat>& top_blobs,
+    virtual int forward(const std::vector<ncnn::Mat*>& bottom_blobs,
+                        std::vector<ncnn::Mat*>& top_blobs,
                         const ncnn::Option& opt) const override {
         // one_blob_only = true, 所以只有一个输入和一个输出
-        const ncnn::Mat& bottom = bottom_blobs[0];
-        ncnn::Mat& top = top_blobs[0];
+        const ncnn::Mat* bottom = bottom_blobs[0];
+        ncnn::Mat* top = top_blobs[0];
 
         // 如果支持原地计算, top 和 bottom 可能指向同一内存
         // NCNN 会自动处理, 我们只需正确读写数据
 
-        int size = bottom.w * bottom.h * bottom.c;
+        int size = bottom->w * bottom->h * bottom->c;
 
         // 选择优化路径
 #ifdef USE_AVX2
         // AVX2 路径: 一次处理 8 个 float
-        forwardAVX2(bottom.data, size);
+        forwardAVX2(bottom->data, size);
 #else
         // 标量路径: 逐元素处理
-        forwardScalar(bottom.data, size);
+        forwardScalar(bottom->data, size);
 #endif
 
         // 如果不是原地计算, 需要拷贝到 top
-        if (bottom.data != top.data) {
+        if (bottom->data != top->data) {
             for (int i = 0; i < size; i++) {
-                top.data[i] = bottom.data[i];
+                top->data[i] = bottom->data[i];
             }
         }
 
@@ -474,8 +481,8 @@ int main() {
 
     // 执行 HardSwish
     CustomHardSwish hardSwish;
-    std::vector<ncnn::Mat> bottom = {input};
-    std::vector<ncnn::Mat> top = {output};
+    std::vector<ncnn::Mat*> bottom = {&input};
+    std::vector<ncnn::Mat*> top = {&output};
 
     Timer timer;
     timer.start();
@@ -556,8 +563,8 @@ int main() {
         // 调用 AVX2 路径 (通过 CustomHardSwish)
         ncnn::Mat avx2Input(PERF_SIZE);
         memcpy(avx2Input.data, dataAvx2.data(), PERF_SIZE * sizeof(float));
-        std::vector<ncnn::Mat> bot = {avx2Input};
-        std::vector<ncnn::Mat> top2 = {avx2Input};
+        std::vector<ncnn::Mat*> bot = {&avx2Input};
+        std::vector<ncnn::Mat*> top2 = {&avx2Input};
         CustomHardSwish hs;
         hs.forward(bot, top2, ncnn::Option());
         memcpy(dataAvx2.data(), avx2Input.data, PERF_SIZE * sizeof(float));

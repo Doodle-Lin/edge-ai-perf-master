@@ -16,6 +16,8 @@
 #ifndef NCNN_EXT_NCNN_MODEL_RUNNER_H
 #define NCNN_EXT_NCNN_MODEL_RUNNER_H
 
+#ifdef USE_NCNN
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -210,5 +212,7 @@ private:
      */
     void cacheLayerInfo();
 };
+
+#endif // USE_NCNN
 
 #endif // NCNN_EXT_NCNN_MODEL_RUNNER_H

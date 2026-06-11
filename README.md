@@ -12,45 +12,66 @@
 | Lab2 | 异构并行调度 | 5 步 | 设备查询、算子图构建、规则调度、数据驱动调度、混合执行 |
 | Lab3 | 高性能算子 | 9 步 | 朴素卷积→SIMD→Cache分块→Winograd→分块GEMM→Vulkan GPU→NCNN自定义算子 |
 
-## 技术栈
+## 前置条件
 
-- **语言**: C++17 (核心) + Python (可视化)
-- **推理框架**: NCNN (腾讯开源，轻量级)
-- **GPU 计算**: Vulkan Compute (跨平台)
-- **SIMD**: x86 AVX2 / FMA
-- **构建**: CMake 3.16+
+### 必需
+
+- **CMake** 3.16 或更高版本
+- **C++17 编译器**: MSVC 2019+ (Windows), GCC 9+ / Clang 10+ (Linux/macOS)
+
+### 可选
+
+| 依赖 | 用途 | 未安装时的影响 |
+|------|------|----------------|
+| Vulkan SDK | GPU 计算 (Lab 6-8) | Lab 6-8 显示 "Vulkan not enabled" 提示，其余实验正常运行 |
+| NCNN | 自定义算子 (Lab 9) | Lab 9 使用模拟 NCNN 运行，演示流程完整但无真实推理 |
+| pybind11 | Python 绑定 | Python 绑定不构建，可视化脚本仍可独立使用 |
 
 ## 快速开始
 
-### 1. 安装依赖
+### 1. 最简构建（无需任何可选依赖）
 
+**Windows:**
 ```bash
-# Vulkan SDK: https://vulkan.lunarg.com/sdk/home
-# NCNN: 作为 git submodule 引入
-
-git clone https://github.com/nihui/ncnn.git 3rdparty/ncnn
-cd 3rdparty/ncnn && mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON
-cmake --build . --config Release -j
-cmake --install .
-```
-
-### 2. 构建
-
-```bash
-# Windows
 scripts\build.bat
-
-# Linux/macOS
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release \
-    -DENABLE_VULKAN=ON \
-    -DENABLE_AVX2=ON \
-    -DNCNN_ROOT=../3rdparty/ncnn/install
-cmake --build . -j$(nproc)
 ```
 
-### 3. 运行实验
+**Linux/macOS:**
+```bash
+chmod +x scripts/build.sh
+./scripts/build.sh
+```
+
+**手动 CMake:**
+```bash
+mkdir build && cd build
+cmake .. -DENABLE_VULKAN=OFF -DENABLE_AVX2=ON -DBUILD_LABS=ON
+cmake --build . -j
+```
+
+### 2. 启用 Vulkan GPU 加速
+
+**Windows:**
+```bash
+scripts\build.bat vulkan
+```
+
+**Linux/macOS:**
+```bash
+./scripts/build.sh vulkan
+```
+
+### 3. 启用 NCNN（从 submodule 源码构建）
+
+```bash
+git submodule update --init --recursive
+# Windows:
+scripts\build.bat ncnn vulkan
+# Linux/macOS:
+./scripts/build.sh ncnn vulkan
+```
+
+### 4. 运行实验
 
 ```bash
 # Lab1: 性能剖析
@@ -61,16 +82,24 @@ cmake --build . -j$(nproc)
 
 # Lab2: 异构调度
 ./build/step1_device_query
+./build/step2_op_graph_build
+./build/step3_heuristic_dispatch
+./build/step4_profile_guided_dispatch
 ./build/step5_hybrid_execution
 
 # Lab3: 高性能算子
-./build/step1_naive_conv        # 朴素卷积基准
-./build/step2_simd_conv         # AVX2 加速
-./build/step4_winograd_conv     # Winograd 变换
-./build/step9_custom_ncnn_op   # NCNN 自定义算子
+./build/step1_naive_conv
+./build/step2_simd_conv
+./build/step3_cache_tiled_conv
+./build/step4_winograd_conv
+./build/step5_gemm_blocked
+./build/step6_vulkan_compute_basics
+./build/step7_vulkan_gemm
+./build/step8_vulkan_conv2d
+./build/step9_custom_ncnn_op
 ```
 
-### 4. 可视化
+### 5. 可视化
 
 ```bash
 pip install -r python/requirements.txt
@@ -85,6 +114,15 @@ python python/scripts/compare_ops.py --ops naive avx2 tiled winograd vulkan --ti
 streamlit run python/edgeai/dashboard.py
 ```
 
+## 构建配置矩阵
+
+| NCNN | Vulkan | pybind11 | 实验覆盖 |
+|------|--------|----------|----------|
+| 否 | 否 | 否 | 全部 18 个实验 (Lab 6-8 显示提示信息; Lab 9 使用模拟 NCNN) |
+| 否 | 是 | 否 | Lab 6-8 使用真实 Vulkan; Lab 9 使用模拟 NCNN |
+| 是 | 否 | 否 | Lab 9 使用真实 NCNN; Lab 6-8 显示提示信息 |
+| 是 | 是 | 是 | 完整功能 |
+
 ## 项目结构
 
 ```
@@ -94,7 +132,7 @@ edge-ai-perf-master/
 │   ├── profiler/         # OpProfiler, MemoryTracker, PowerMonitor
 │   ├── scheduler/        # DeviceInfo, OpGraph, DispatchStrategy, HybridExecutor
 │   ├── operators/        # Naive→SIMD→Tiled→Winograd→GEMM→Vulkan 算子
-│   └── ncnn_ext/         # NcnnModelRunner, CustomHardSwish
+│   └── ncnn_ext/         # NcnnModelRunner, CustomHardSwish (需 NCNN)
 ├── src/                  # C++ 实现
 │   └── shaders/          # Vulkan Compute shaders (GLSL)
 ├── labs/                 # 18 个动手实验
@@ -114,12 +152,13 @@ edge-ai-perf-master/
 
 | 选项 | 默认 | 说明 |
 |------|------|------|
-| `ENABLE_VULKAN` | ON | 启用 Vulkan GPU 后端 |
+| `ENABLE_VULKAN` | ON | 启用 Vulkan GPU 后端（自动降级，Vulkan 不可用时关闭） |
 | `ENABLE_AVX2` | ON | 启用 AVX2 SIMD 优化 |
 | `ENABLE_PROFILING` | ON | 启用 profiling 模块 |
 | `ENABLE_PYTHON` | ON | 构建 Python 绑定 |
 | `BUILD_LABS` | ON | 构建实验可执行文件 |
 | `BUILD_TESTS` | ON | 构建单元测试 |
+| `BUILD_NCNN` | OFF | 从 3rdparty/ncnn 子模块源码构建 NCNN |
 
 ## 学习路线
 
@@ -138,4 +177,4 @@ Lab1 (性能剖析)          Lab2 (异构调度)           Lab3 (算子优化)
                                               └──────────────┘
 ```
 
-建议按顺序完成，每个 Step 都可以独立编译运行。
+建议按顺序完成，每个 Step 都可以独立编译运行。详见 [LEARNING_GUIDE.md](LEARNING_GUIDE.md)。

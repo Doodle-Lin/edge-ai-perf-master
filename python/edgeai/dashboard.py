@@ -15,10 +15,15 @@ import streamlit as st
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 # 确保可以导入 edgeai 包
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# 跨平台临时目录
+TEMP_DIR = Path(tempfile.gettempdir()) / "edgeai"
+TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 from edgeai.visualize import ProfilingVisualizer, PowerVisualizer
 from edgeai.power_analyzer import PowerAnalyzer
@@ -69,15 +74,15 @@ def main():
                 col1, col2 = st.columns(2)
                 with col1:
                     st.subheader("时间线")
-                    viz.plot_layer_timeline(save_path='/tmp/edgeai_timeline.png')
-                    if os.path.exists('/tmp/edgeai_timeline.png'):
-                        st.image('/tmp/edgeai_timeline.png')
+                    viz.plot_layer_timeline(save_path=str(TEMP_DIR / 'edgeai_timeline.png'))
+                    if os.path.exists(str(TEMP_DIR / 'edgeai_timeline.png')):
+                        st.image(str(TEMP_DIR / 'edgeai_timeline.png'))
 
                 with col2:
                     st.subheader("FLOPs 分布")
-                    viz.plot_flops_breakdown(save_path='/tmp/edgeai_flops.png')
-                    if os.path.exists('/tmp/edgeai_flops.png'):
-                        st.image('/tmp/edgeai_flops.png')
+                    viz.plot_flops_breakdown(save_path=str(TEMP_DIR / 'edgeai_flops.png'))
+                    if os.path.exists(str(TEMP_DIR / 'edgeai_flops.png')):
+                        st.image(str(TEMP_DIR / 'edgeai_flops.png'))
 
     elif mode == "算子对比":
         st.header("算子性能对比")
@@ -92,9 +97,9 @@ def main():
 
             if len(names) == len(times):
                 viz = ProfilingVisualizer([])
-                viz.plot_compare(names, times, save_path='/tmp/edgeai_compare.png')
-                if os.path.exists('/tmp/edgeai_compare.png'):
-                    st.image('/tmp/edgeai_compare.png')
+                viz.plot_compare(names, times, save_path=str(TEMP_DIR / 'edgeai_compare.png'))
+                if os.path.exists(str(TEMP_DIR / 'edgeai_compare.png')):
+                    st.image(str(TEMP_DIR / 'edgeai_compare.png'))
             else:
                 st.error("名称数量和耗时数量不匹配")
 
@@ -108,9 +113,9 @@ def main():
                 analyzer.print_summary()
 
                 pviz = PowerVisualizer(data)
-                pviz.plot_power_curve(save_path='/tmp/edgeai_power.png')
-                if os.path.exists('/tmp/edgeai_power.png'):
-                    st.image('/tmp/edgeai_power.png')
+                pviz.plot_power_curve(save_path=str(TEMP_DIR / 'edgeai_power.png'))
+                if os.path.exists(str(TEMP_DIR / 'edgeai_power.png')):
+                    st.image(str(TEMP_DIR / 'edgeai_power.png'))
 
     elif mode == "Roofline Model":
         st.header("Roofline Model")
@@ -127,9 +132,9 @@ def main():
             if data:
                 viz = ProfilingVisualizer(data)
                 viz.plot_roofline(peak_gflops=peak_gflops, peak_bw_gbs=peak_bw,
-                                  save_path='/tmp/edgeai_roofline.png')
-                if os.path.exists('/tmp/edgeai_roofline.png'):
-                    st.image('/tmp/edgeai_roofline.png')
+                                  save_path=str(TEMP_DIR / 'edgeai_roofline.png'))
+                if os.path.exists(str(TEMP_DIR / 'edgeai_roofline.png')):
+                    st.image(str(TEMP_DIR / 'edgeai_roofline.png'))
 
 
 if __name__ == "__main__":

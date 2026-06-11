@@ -3,7 +3,11 @@ file(GLOB_RECURSE COMMON_SOURCES     common/*.cpp)
 file(GLOB_RECURSE PROFILER_SOURCES   profiler/*.cpp)
 file(GLOB_RECURSE SCHEDULER_SOURCES  scheduler/*.cpp)
 file(GLOB_RECURSE OPERATOR_SOURCES   operators/*.cpp)
-file(GLOB_RECURSE NCNN_EXT_SOURCES   ncnn_ext/*.cpp)
+
+# NCNN 扩展模块 - 仅在 NCNN 可用时编译
+if(NCNN_FOUND)
+    file(GLOB_RECURSE NCNN_EXT_SOURCES   ncnn_ext/*.cpp)
+endif()
 
 add_library(edgeai_core SHARED
     ${COMMON_SOURCES}
@@ -13,20 +17,37 @@ add_library(edgeai_core SHARED
     ${NCNN_EXT_SOURCES}
 )
 
+# Windows: ensure import library (.lib) is generated alongside the DLL
+if(WIN32)
+    set_target_properties(edgeai_core PROPERTIES
+        WINDOWS_EXPORT_ALL_SYMBOLS ON
+    )
+endif()
+
 target_include_directories(edgeai_core
     PUBLIC
         ${CMAKE_SOURCE_DIR}/include
-        ${NCNN_INCLUDE_DIRS}
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
 )
 
-target_link_libraries(edgeai_core
-    PUBLIC
-        ${NCNN_LIBRARIES}
-    PRIVATE
-        Threads::Threads
-)
+if(NCNN_FOUND)
+    target_include_directories(edgeai_core PUBLIC ${NCNN_INCLUDE_DIRS})
+endif()
+
+# 查找线程库
+find_package(Threads QUIET)
+if(Threads_FOUND)
+    target_link_libraries(edgeai_core PRIVATE Threads::Threads)
+endif()
+
+if(NCNN_FOUND)
+    if(TARGET ncnn)
+        target_link_libraries(edgeai_core PUBLIC ncnn)
+    else()
+        target_link_libraries(edgeai_core PUBLIC ${NCNN_LIBRARIES})
+    endif()
+endif()
 
 if(WIN32)
     target_link_libraries(edgeai_core PRIVATE pdh)
